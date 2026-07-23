@@ -11,80 +11,133 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: stylua
-        uses: JohnnyMorganz/stylua-action@v4
+        uses: JohnnyMorganz/stylua-action@479972f01e665acfcba96ada452c36608bdbbb5e # v4.1.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          # pinned so an upstream formatting change can't break CI on its own
           version: v2.5.2
           args: --check .
 
-      # shellcheck is preinstalled on ubuntu-latest runners.
       - name: shellcheck
-        run: shellcheck install.sh install-vimrc.sh
+        run: shellcheck install.sh install-vimrc.sh tests/installers.sh tests/fixtures/*
 
-      # Write-Host is intentional: interactive installer with colored output.
       - name: psscriptanalyzer
         shell: pwsh
         run: |
-          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
-          $r = Invoke-ScriptAnalyzer -Path install.ps1 -ExcludeRule PSAvoidUsingWriteHost
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Force -Scope CurrentUser
+          $r = @('install.ps1', 'tests/install.ps1') | ForEach-Object {
+            Invoke-ScriptAnalyzer -Path $_ -ExcludeRule PSAvoidUsingWriteHost
+          }
           if ($r) { $r; exit 1 }
 
       - name: Install luacheck
-        run: sudo apt-get update && sudo apt-get install -y luarocks && sudo luarocks install luacheck
+        run: sudo apt-get update && sudo apt-get install -y luarocks && sudo luarocks install luacheck 1.2.0-1
       - name: luacheck
-        run: luacheck init.lua
+        run: luacheck init.lua tests/lockfile.lua
 
-  # Boots the config headless and restores every plugin from lazy-lock.json,
-  # so a broken init.lua or a dead plugin pin fails CI instead of a machine.
   smoke:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            neovim: v0.11.3
+            sha256: 02b808a3ee8fc30161e07fe3c3edfb24b28bd0295323ac5dbdd8ec7012cac67d
+            supported: true
+          - os: ubuntu-latest
+            neovim: v0.11.7
+            sha256: 38a7c6317f94503841096c00e8fde05ef04b9472fc9d7d62b6e033cecd6f7991
+            supported: true
+          - os: macos-latest
+            neovim: v0.11.7
+            supported: true
+          - os: windows-latest
+            neovim: v0.11.7
+            sha256: 7b10e6e08b14bf256422b72cfe706ef0452fd9c0a40e138426e1af09803d697f
+            supported: true
+          - os: ubuntu-latest
+            neovim: v0.12.4
+            sha256: 012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628
+            supported: false
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: install neovim (linux)
         if: runner.os == 'Linux'
         run: |
-          curl -fsSL https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz | tar xz -C "$RUNNER_TEMP"
+          archive="$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
+          curl -fsSLo "$archive" "https://github.com/neovim/neovim/releases/download/${{ matrix.neovim }}/nvim-linux-x86_64.tar.gz"
+          printf '%s  %s\n' '${{ matrix.sha256 }}' "$archive" | sha256sum -c -
+          tar xzf "$archive" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
 
-      # official zip + GITHUB_PATH; choco puts nvim on the machine PATH,
-      # which already-running runner steps never see
+      - name: install neovim (macos)
+        if: runner.os == 'macOS'
+        run: |
+          arch=$(uname -m)
+          case "$arch" in
+            arm64) sha=9c84686ce84bbab725ff3d88ca3ac1d6da5a72128b68d9dd8094e34d4049a126 ;;
+            x86_64) sha=014649c0c75e188fd70d40f787ee7cb83e7c2926264cd4e72c300d0198922371 ;;
+            *) echo "unsupported macOS architecture: $arch"; exit 1 ;;
+          esac
+          archive="$RUNNER_TEMP/nvim-macos-$arch.tar.gz"
+          curl -fsSLo "$archive" "https://github.com/neovim/neovim/releases/download/${{ matrix.neovim }}/nvim-macos-$arch.tar.gz"
+          printf '%s  %s\n' "$sha" "$archive" | shasum -a 256 -c -
+          tar xzf "$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-macos-$arch/bin" >> "$GITHUB_PATH"
+
       - name: install neovim (windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Invoke-WebRequest https://github.com/neovim/neovim/releases/download/stable/nvim-win64.zip -OutFile $env:RUNNER_TEMP\nvim.zip
-          Expand-Archive $env:RUNNER_TEMP\nvim.zip -DestinationPath $env:RUNNER_TEMP
+          $archive = Join-Path $env:RUNNER_TEMP 'nvim.zip'
+          Invoke-WebRequest "https://github.com/neovim/neovim/releases/download/${{ matrix.neovim }}/nvim-win64.zip" -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '${{ matrix.sha256 }}') {
+            throw 'Neovim archive checksum mismatch.'
+          }
+          Expand-Archive $archive -DestinationPath $env:RUNNER_TEMP
           Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\nvim-win64\bin"
 
+      - name: installer tests (unix)
+        if: runner.os != 'Windows'
+        run: sh tests/installers.sh
+
+      - name: installer tests (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tests/install.ps1
+
       - name: install config
+        if: matrix.supported
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then dest="$LOCALAPPDATA/nvim"; else dest="$HOME/.config/nvim"; fi
           mkdir -p "$(dirname "$dest")" && cp -R . "$dest"
 
-      # `Lazy! restore` exits 0 even when tasks fail, so verify the result against the
-      # lockfile instead: every plugin must sit at its pinned commit. lazy.nvim itself is
-      # exempt - the init.lua bootstrap clones it at branch `stable`, restore never re-pins it.
       - name: boot config and restore pinned plugins
+        if: matrix.supported
         shell: bash
         run: |
           nvim --headless "+Lazy! restore" +qa
           if [ "$RUNNER_OS" = "Windows" ]; then data="$LOCALAPPDATA/nvim-data"; else data="$HOME/.local/share/nvim"; fi
+          lock_entries="$RUNNER_TEMP/nvim-lock.tsv"
+          jq -e 'type == "object" and all(.[]; type == "object" and (.commit | type == "string" and test("^[0-9a-f]{40}$")))' lazy-lock.json >/dev/null
+          jq -r 'to_entries[] | "\(.key)\t\(.value.commit)"' lazy-lock.json | tr -d '\r' > "$lock_entries"
           fail=0
           while IFS=$'\t' read -r name commit; do
             have=$(git -C "$data/lazy/$name" rev-parse HEAD 2>/dev/null || echo missing)
             [ "$have" = "$commit" ] || { echo "MISMATCH $name: want $commit have $have"; fail=1; }
-          # tr strips the CR that windows jq appends to every output line
-          done < <(jq -r 'to_entries[] | select(.key != "lazy.nvim") | "\(.key)\t\(.value.commit)"' lazy-lock.json | tr -d '\r')
+          done < "$lock_entries"
+          NVIM_LOCKFILE="$GITHUB_WORKSPACE/lazy-lock.json" NVIM_LOCK_TEST="$GITHUB_WORKSPACE/tests/lockfile.lua" \
+            nvim --headless '+lua dofile(vim.env.NVIM_LOCK_TEST)' +qa
           [ "$fail" -eq 0 ] && echo "SMOKE OK: all pinned plugins restored"
           exit $fail

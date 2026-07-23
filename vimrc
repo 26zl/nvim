@@ -14,7 +14,10 @@ let mapleader = ' '
 let maplocalleader = ' '
 
 " Options mirrored from init.lua.
-set number relativenumber
+set number
+if exists('+relativenumber')
+  set relativenumber
+endif
 set ignorecase smartcase
 set incsearch hlsearch
 set expandtab shiftwidth=2 tabstop=2 softtabstop=2
@@ -36,18 +39,22 @@ if has('mouse')
   set mouse=a
 endif
 
-if has('clipboard')
-  set clipboard=unnamed,unnamedplus
+if has('unnamedplus')
+  set clipboard=unnamedplus
+elseif has('clipboard')
+  set clipboard=unnamed
 endif
 
-" Persistent undo in a dedicated dir (created if missing), like Neovim.
+" Use persistent undo only when its private directory is writable.
 if has('persistent_undo')
   let s:undodir = expand('~/.vim/undo')
   if !isdirectory(s:undodir)
-    call mkdir(s:undodir, 'p', 0700)
+    silent! call mkdir(s:undodir, 'p', 0700)
   endif
-  let &undodir = s:undodir
-  set undofile
+  if isdirectory(s:undodir) && filewritable(s:undodir) == 2
+    let &undodir = s:undodir
+    set undofile
+  endif
 endif
 
 " Plugin-free echo of Telescope: :find <part><Tab> and :b <part><Tab> to jump around.

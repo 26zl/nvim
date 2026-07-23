@@ -1,7 +1,7 @@
 # nvim
 
 [![ci](https://github.com/26zl/nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/26zl/nvim/actions/workflows/ci.yml)
-[![Neovim 0.11+](https://img.shields.io/badge/Neovim-0.11%2B-57A143?logo=neovim&logoColor=white)](https://neovim.io)
+[![Neovim 0.11.3–0.11.x](https://img.shields.io/badge/Neovim-0.11.3--0.11.x-57A143?logo=neovim&logoColor=white)](https://neovim.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A portable single-file Neovim config (`init.lua`) — the **same setup on any Linux,
@@ -22,39 +22,22 @@ automatically.
 
 ## Requirements
 
-- **Neovim ≥ 0.11** (uses `vim.lsp.config` / `vim.lsp.enable`) — grab the official
-  [release tarball or AppImage](https://github.com/neovim/neovim/releases) if your
-  package manager ships something older.
-- **git**, a **C compiler** (Treesitter + fzf-native build), **ripgrep** + **fd**
+- **Neovim 0.11.3–0.11.x**. The pinned legacy Treesitter branch does not support
+  Neovim 0.12, so the config rejects it explicitly instead of starting in an
+  unsupported state. CI tests 0.11.3 and the latest 0.11 release, plus the 0.12
+  rejection path.
+- **git**, a **C compiler**, `make` on Unix or **CMake** on Windows (Treesitter +
+  fzf-native), **ripgrep** + **fd**
   (Telescope), a **clipboard provider** (`wl-clipboard` or `xclip` on Linux; built in
   on macOS/Windows) for the system clipboard, and a **Nerd Font** in your terminal for icons
+- **Rust/Cargo** when Mason should install the Nix language server outside NixOS
 
 ## Install
 
-One-liner — **backs up any existing config**, clones to the right path, and fast-forwards
-(`git pull`) if it's already installed. Then launch `nvim`; plugins install on first run.
-
-**Windows (PowerShell):**
-
-```powershell
-irm https://github.com/26zl/nvim/raw/main/install.ps1 | iex
-```
-
-**Linux / macOS / WSL:**
+The simplest auditable installation is a manual clone:
 
 ```sh
-curl -fsSL https://github.com/26zl/nvim/raw/main/install.sh | sh
-```
-
-> These fetch and run a script from this repo — read [`install.ps1`](install.ps1) /
-> [`install.sh`](install.sh) first if you don't trust them. They install the **config**,
-> not Neovim itself: install Neovim **0.11+** and the deps separately (see Requirements).
-
-Run `:Mason` afterwards to watch the language servers install (on NixOS they come from your system config instead).
-
-### Manual clone
-
-```sh
+mkdir -p ~/.config
 git clone https://github.com/26zl/nvim ~/.config/nvim   # Linux / macOS / WSL
 ```
 
@@ -62,15 +45,39 @@ git clone https://github.com/26zl/nvim ~/.config/nvim   # Linux / macOS / WSL
 git clone https://github.com/26zl/nvim $env:LOCALAPPDATA\nvim   # Windows
 ```
 
-On **WSL / Debian / Ubuntu**, install the deps and a current Neovim first:
+The installer scripts back up a non-repository config, clone through a staging
+directory, and fast-forward an existing official clone. Download and review the
+script before running it because `main` is a mutable source.
 
-```sh
-sudo apt update && sudo apt install -y git curl ripgrep fd-find build-essential unzip
-curl -fsSLo /tmp/nvim.tar.gz https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz
-sudo tar -C /opt -xzf /tmp/nvim.tar.gz && sudo ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
+**Windows (PowerShell):**
+
+```powershell
+$installer = Join-Path $env:TEMP 'install-nvim.ps1'
+Invoke-WebRequest https://github.com/26zl/nvim/raw/main/install.ps1 -OutFile $installer
+Get-Content $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
+Remove-Item $installer
 ```
 
-> On **ARM Linux (aarch64)**, swap `x86_64` → `arm64` in both lines above.
+**Linux / macOS / WSL:**
+
+```sh
+installer=$(mktemp)
+curl -fsSL https://github.com/26zl/nvim/raw/main/install.sh -o "$installer"
+less "$installer"
+sh "$installer"
+rm "$installer"
+```
+
+The scripts install the config, not Neovim or its system dependencies. Launch
+`nvim` after installation; plugins install on first run.
+
+Run `:Mason` afterwards to watch the language servers install (on NixOS they come from your system config instead).
+
+On distributions whose package manager cannot supply a compatible version, use
+the official [Neovim 0.11.7 release](https://github.com/neovim/neovim/releases/tag/v0.11.7)
+and verify the asset's published SHA-256 digest before installation. Do not use
+the moving `stable` asset: it currently resolves to Neovim 0.12.
 
 ## Plain Vim on servers
 
@@ -81,8 +88,11 @@ undo — so vanilla Vim on any Linux server doesn't feel alien. No plugins, and 
 version-specific options so it degrades cleanly on older Vim builds (whatever your distro ships).
 
 ```sh
-curl -fsSL https://github.com/26zl/nvim/raw/main/install-vimrc.sh | sh   # backs up ~/.vimrc, then installs
-# from a clone instead:  cp vimrc ~/.vimrc
+installer=$(mktemp)
+curl -fsSL https://github.com/26zl/nvim/raw/main/install-vimrc.sh -o "$installer"
+less "$installer"
+sh "$installer"   # downloads atomically and backs up an existing ~/.vimrc
+rm "$installer"
 ```
 
 ## Keys (leader = <kbd>Space</kbd>)
@@ -119,3 +129,19 @@ Formatters: add one line under `formatters_by_ft` in `init.lua`, or let the LSP 
 :TSUpdate      # update Treesitter parsers
 :checkhealth   # verify everything is wired up
 ```
+
+The repository installer uses an explicit fast-forward from `origin/main`; it
+will not merge or overwrite divergent local work. Plugin revisions, including
+`lazy.nvim` itself, are restored from `lazy-lock.json`.
+
+## Rollback and local state
+
+A replaced config is kept beside the active directory as
+`nvim.bak-<timestamp>-<process-id>` (or the corresponding Windows path). To
+restore it, move the current directory aside and rename the chosen backup to
+`nvim`. Before reverting an updated Git clone, inspect `git reflog` and preserve
+any local changes.
+
+Neovim and Vim use persistent undo, which can retain earlier contents of edited
+files locally. Use `:setlocal noundofile` before editing sensitive material when
+that retention is undesirable.

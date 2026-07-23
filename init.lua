@@ -1,27 +1,14 @@
--- Portable Neovim config — works on any Linux, macOS, WSL and Windows.
--- Beginner-friendly (which-key shows keys) and sysadmin/system-engineering ready.
---
--- LSP servers: on NixOS they come from the system; elsewhere Mason auto-installs
--- them. Everything else (keymaps, plugins, UI) is identical on every OS.
---
--- Install locations:
---   Linux/macOS: ~/.config/nvim/init.lua
---   Windows:     ~/AppData/Local/nvim/init.lua
+-- Portable Neovim 0.11 config for Linux, macOS, WSL, and Windows.
+local function fail_startup(message)
+	vim.api.nvim_echo({ { message, "ErrorMsg" } }, true, {})
+	os.exit(1)
+end
 
--- This config uses vim.lsp.config()/vim.lsp.enable(), added in Neovim 0.11.
--- Fail clearly on older builds instead of crashing later with a cryptic nil-value
--- error from the LSP setup.
-if vim.fn.has("nvim-0.11") == 0 then
+if vim.fn.has("nvim-0.11.3") == 0 or vim.fn.has("nvim-0.12") == 1 then
 	local v = vim.version()
-	vim.notify(
-		("This Neovim config needs 0.11+ (you have %d.%d.%d). Install a newer Neovim."):format(
-			v.major,
-			v.minor,
-			v.patch
-		),
-		vim.log.levels.ERROR
+	fail_startup(
+		("This config supports Neovim 0.11.3 through 0.11.x; you have %d.%d.%d."):format(v.major, v.minor, v.patch)
 	)
-	return
 end
 
 vim.g.mapleader = " "
@@ -51,22 +38,60 @@ opt.splitright = true
 opt.splitbelow = true
 opt.cursorline = true
 opt.breakindent = true
-if vim.fn.exists("&winborder") == 1 then
-	opt.winborder = "rounded"
+opt.winborder = "rounded"
+
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+local lockfile = vim.fn.stdpath("config") .. "/lazy-lock.json"
+local read_ok, lock_lines = pcall(vim.fn.readfile, lockfile)
+local decode_ok, lock = pcall(vim.json.decode, read_ok and table.concat(lock_lines, "\n") or "")
+local lazy_entry = decode_ok and type(lock) == "table" and lock["lazy.nvim"]
+local lazy_commit = type(lazy_entry) == "table" and lazy_entry.commit
+if type(lazy_commit) ~= "string" or #lazy_commit ~= 40 or not lazy_commit:match("^%x+$") then
+	fail_startup("lazy-lock.json does not contain a valid lazy.nvim commit.")
 end
 
--- Bootstrap lazy.nvim (portable path handling)
-local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not (vim.uv or vim.loop).fs_stat(lazypath) then
-	vim.fn.system({
-		"git",
+local function git_or_fail(arguments, message)
+	table.insert(arguments, 1, "git")
+	local ok, output = pcall(vim.fn.system, arguments)
+	if not ok or vim.v.shell_error ~= 0 then
+		fail_startup(message .. "\n" .. output)
+	end
+	return vim.trim(output)
+end
+
+local cloned = false
+if not vim.uv.fs_stat(lazypath) then
+	git_or_fail({
 		"clone",
 		"--filter=blob:none",
 		"https://github.com/folke/lazy.nvim.git",
-		"--branch=stable",
 		lazypath,
-	})
+	}, "Failed to clone lazy.nvim.")
+	cloned = true
 end
+
+local lazy_head = git_or_fail({ "-C", lazypath, "rev-parse", "HEAD" }, "Failed to inspect lazy.nvim.")
+if lazy_head ~= lazy_commit then
+	git_or_fail({
+		"-C",
+		lazypath,
+		"fetch",
+		"--depth=1",
+		"--filter=blob:none",
+		"origin",
+		lazy_commit,
+	}, "Failed to fetch the locked lazy.nvim commit.")
+end
+if cloned or lazy_head ~= lazy_commit then
+	git_or_fail({
+		"-C",
+		lazypath,
+		"checkout",
+		"--detach",
+		lazy_commit,
+	}, "Failed to check out the locked lazy.nvim commit.")
+end
+
 vim.opt.rtp:prepend(lazypath)
 
 local servers = {
@@ -85,13 +110,7 @@ local servers = {
 	"marksman",
 }
 
--- Mason installs every server except nil_ls (Nix), which ships only via the system on NixOS.
-local mason_servers = vim.tbl_filter(function(s)
-	return s ~= "nil_ls"
-end, servers)
-
 require("lazy").setup({
-	-- Nordic colorscheme (Nord-based, warmer and darker)
 	{
 		"AlexvZyl/nordic.nvim",
 		lazy = false,
@@ -105,7 +124,6 @@ require("lazy").setup({
 	{ "nvim-lualine/lualine.nvim", opts = { options = { theme = "nordic", globalstatus = true } } },
 	{ "folke/which-key.nvim", event = "VeryLazy", opts = {} },
 
-	-- Buffer tabs
 	{
 		"akinsho/bufferline.nvim",
 		dependencies = "nvim-tree/nvim-web-devicons",
@@ -123,7 +141,6 @@ require("lazy").setup({
 		},
 	},
 
-	-- Syntax
 	{
 		"nvim-treesitter/nvim-treesitter",
 		branch = "master",
@@ -153,13 +170,12 @@ require("lazy").setup({
 		},
 	},
 
-	-- Fuzzy finder
 	{
 		"nvim-telescope/telescope.nvim",
 		dependencies = {
 			"nvim-lua/plenary.nvim",
 			{
-				-- Native sorter: `make` on Unix, CMake on Windows (no make there).
+				-- Windows runners provide CMake rather than make.
 				"nvim-telescope/telescope-fzf-native.nvim",
 				build = is_windows
 						and "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && cmake --install build --prefix build"
@@ -179,7 +195,6 @@ require("lazy").setup({
 		end,
 	},
 
-	-- File explorer
 	{
 		"nvim-neo-tree/neo-tree.nvim",
 		branch = "v3.x",
@@ -203,8 +218,6 @@ require("lazy").setup({
 		keys = { { "<leader>xx", "<cmd>Trouble diagnostics toggle<cr>", desc = "Diagnostics (Trouble)" } },
 	},
 
-	-- Editing helpers: a/i text objects, surround (sa/sd/sr), auto-pairs.
-	-- (Commenting is built into Neovim 0.10+: gc / gcc.)
 	{
 		"echasnovski/mini.nvim",
 		config = function()
@@ -214,7 +227,6 @@ require("lazy").setup({
 		end,
 	},
 
-	-- Formatting (falls back to the LSP when a formatter is missing)
 	{
 		"stevearc/conform.nvim",
 		event = "BufWritePre",
@@ -237,7 +249,6 @@ require("lazy").setup({
 		},
 	},
 
-	-- Completion
 	{
 		"hrsh7th/nvim-cmp",
 		dependencies = {
@@ -289,14 +300,13 @@ require("lazy").setup({
 			if is_nixos then
 				vim.lsp.enable(servers)
 			else
-				require("mason-lspconfig").setup({ ensure_installed = mason_servers })
+				require("mason-lspconfig").setup({ ensure_installed = servers })
 				require("mason-tool-installer").setup({
 					ensure_installed = { "stylua", "shfmt", "black", "isort", "prettierd" },
 				})
 			end
 
-			-- Neovim's default gr-prefixed LSP maps (grr/gra/grn/gri/grt/grx) would make our
-			-- `gr` wait out timeoutlen for a longer match; drop them so `gr` fires instantly.
+			-- Remove longer defaults so `gr` does not wait for another key.
 			for _, k in ipairs({ "grr", "gra", "grn", "gri", "grt", "grx" }) do
 				pcall(vim.keymap.del, "n", k)
 			end
@@ -321,7 +331,6 @@ require("lazy").setup({
 
 vim.diagnostic.config({ severity_sort = true })
 
--- General keymaps
 vim.keymap.set("n", "<leader>w", "<cmd>w<cr>", { desc = "Save" })
 vim.keymap.set("n", "<leader>q", "<cmd>q<cr>", { desc = "Quit" })
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<cr>", { desc = "Clear search highlight" })

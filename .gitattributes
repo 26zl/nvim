@@ -1,4 +1,2 @@
-# Normalize text to LF so the blob GitHub serves from /raw/ has LF line endings:
-# a CRLF shebang breaks `curl | sh`, and `irm | iex` should get the same bytes as
-# a local clone. Without this, core.autocrlf can check scripts out as CRLF.
+# Keep script shebangs valid in raw downloads and Windows checkouts.
 * text=auto eol=lf
