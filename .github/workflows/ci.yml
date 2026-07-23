@@ -56,9 +56,15 @@ jobs:
           curl -fsSL https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz | tar xz -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
 
+      # official zip + GITHUB_PATH; choco puts nvim on the machine PATH,
+      # which already-running runner steps never see
       - name: install neovim (windows)
         if: runner.os == 'Windows'
-        run: choco install neovim -y --no-progress
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/neovim/neovim/releases/download/stable/nvim-win64.zip -OutFile $env:RUNNER_TEMP\nvim.zip
+          Expand-Archive $env:RUNNER_TEMP\nvim.zip -DestinationPath $env:RUNNER_TEMP
+          Add-Content $env:GITHUB_PATH "$env:RUNNER_TEMP\nvim-win64\bin"
 
       - name: install config
         shell: bash
