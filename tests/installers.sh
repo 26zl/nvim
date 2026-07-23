@@ -89,7 +89,7 @@ successful_vimrc_download_keeps_backup() {
 
 bootstrap_failure_is_clear() {
   if ! nvim --clean --headless \
-    "+lua if vim.fn.has('nvim-0.11.3') == 1 and vim.fn.has('nvim-0.12') == 0 then vim.cmd('qa') else vim.cmd('cq') end" \
+    "+lua if vim.fn.has('nvim-0.11.3') == 1 then vim.cmd('qa') else vim.cmd('cq') end" \
     >/dev/null 2>&1; then
     return 0
   fi
@@ -116,33 +116,6 @@ bootstrap_failure_is_clear() {
     ! grep -Fq "module 'lazy' not found" "$output"
 }
 
-unsupported_neovim_version_is_rejected() {
-  if ! nvim --clean --headless \
-    "+lua if vim.fn.has('nvim-0.12') == 1 then vim.cmd('qa') else vim.cmd('cq') end" \
-    >/dev/null 2>&1; then
-    return 0
-  fi
-
-  case_root="$test_root/version-guard"
-  config="$case_root/config/nvim"
-  output="$case_root/output.log"
-  mkdir -p "$config" "$case_root/data" "$case_root/state" "$case_root/cache" "$case_root/home"
-  cp "$repo_root/init.lua" "$config/init.lua"
-
-  status=0
-  PATH="$fixtures:$PATH" \
-    FAKE_GIT_FAIL_OPERATION=clone \
-    XDG_CONFIG_HOME="$case_root/config" \
-    XDG_DATA_HOME="$case_root/data" \
-    XDG_STATE_HOME="$case_root/state" \
-    XDG_CACHE_HOME="$case_root/cache" \
-    HOME="$case_root/home" \
-    nvim --headless +qa >"$output" 2>&1 || status=$?
-
-  [ "$status" -ne 0 ] &&
-    grep -Fq "Neovim 0.11.3 through 0.11.x" "$output"
-}
-
 vimrc_handles_unwritable_undo_directory() {
   HOME=/dev/null vim -Nu "$repo_root/vimrc" -n -es -i NONE -c 'qa!'
 }
@@ -158,7 +131,6 @@ run_test "foreign origin is replaced instead of pulled" foreign_origin_is_replac
 run_test "failed vimrc download preserves the live file" failed_vimrc_download_preserves_destination
 run_test "successful vimrc download keeps a backup" successful_vimrc_download_keeps_backup
 run_test "lazy.nvim clone failure is explicit" bootstrap_failure_is_clear
-run_test "unsupported Neovim versions are rejected clearly" unsupported_neovim_version_is_rejected
 run_test "vimrc tolerates an unwritable undo directory" vimrc_handles_unwritable_undo_directory
 run_test "vimrc only enables supported clipboard options" vimrc_uses_supported_clipboard_options
 

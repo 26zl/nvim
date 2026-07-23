@@ -1,14 +1,12 @@
--- Portable Neovim 0.11 config for Linux, macOS, WSL, and Windows.
+-- Portable Neovim config (0.11.3+) for Linux, macOS, WSL, and Windows.
 local function fail_startup(message)
 	vim.api.nvim_echo({ { message, "ErrorMsg" } }, true, {})
 	os.exit(1)
 end
 
-if vim.fn.has("nvim-0.11.3") == 0 or vim.fn.has("nvim-0.12") == 1 then
+if vim.fn.has("nvim-0.11.3") == 0 then
 	local v = vim.version()
-	fail_startup(
-		("This config supports Neovim 0.11.3 through 0.11.x; you have %d.%d.%d."):format(v.major, v.minor, v.patch)
-	)
+	fail_startup(("This config needs Neovim 0.11.3 or newer; you have %d.%d.%d."):format(v.major, v.minor, v.patch))
 end
 
 vim.g.mapleader = " "

@@ -1,7 +1,7 @@
 # nvim
 
 [![ci](https://github.com/26zl/nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/26zl/nvim/actions/workflows/ci.yml)
-[![Neovim 0.11.3–0.11.x](https://img.shields.io/badge/Neovim-0.11.3--0.11.x-57A143?logo=neovim&logoColor=white)](https://neovim.io)
+[![Neovim 0.11.3+](https://img.shields.io/badge/Neovim-0.11.3%2B-57A143?logo=neovim&logoColor=white)](https://neovim.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A portable single-file Neovim config (`init.lua`) — the **same setup on any Linux,
@@ -22,10 +22,9 @@ automatically.
 
 ## Requirements
 
-- **Neovim 0.11.3–0.11.x**. The pinned legacy Treesitter branch does not support
-  Neovim 0.12, so the config rejects it explicitly instead of starting in an
-  unsupported state. CI tests 0.11.3 and the latest 0.11 release, plus the 0.12
-  rejection path.
+- **Neovim 0.11.3 or newer** (0.11.x and 0.12.x). Older versions are rejected up
+  front instead of starting in a broken state. CI smoke-tests 0.11.3, the latest
+  0.11 release, and 0.12.
 - **git**, a **C compiler**, `make` on Unix or **CMake** on Windows (Treesitter +
   fzf-native), **ripgrep** + **fd**
   (Telescope), a **clipboard provider** (`wl-clipboard` or `xclip` on Linux; built in
@@ -74,10 +73,9 @@ The scripts install the config, not Neovim or its system dependencies. Launch
 
 Run `:Mason` afterwards to watch the language servers install (on NixOS they come from your system config instead).
 
-On distributions whose package manager cannot supply a compatible version, use
-the official [Neovim 0.11.7 release](https://github.com/neovim/neovim/releases/tag/v0.11.7)
-and verify the asset's published SHA-256 digest before installation. Do not use
-the moving `stable` asset: it currently resolves to Neovim 0.12.
+On distributions whose package manager ships an older Neovim, grab a current
+build from the official [Neovim releases](https://github.com/neovim/neovim/releases)
+(0.11.3 or newer) and verify the asset's published SHA-256 digest before installing.
 
 ## Plain Vim on servers
 

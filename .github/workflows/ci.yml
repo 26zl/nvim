@@ -63,7 +63,7 @@ jobs:
           - os: ubuntu-latest
             neovim: v0.12.4
             sha256: 012bf3fcac5ade43914df3f174668bf64d05e049a4f032a388c027b1ebd78628
-            supported: false
+            supported: true
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
