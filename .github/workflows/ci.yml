@@ -84,6 +84,7 @@ jobs:
           while IFS=$'\t' read -r name commit; do
             have=$(git -C "$data/lazy/$name" rev-parse HEAD 2>/dev/null || echo missing)
             [ "$have" = "$commit" ] || { echo "MISMATCH $name: want $commit have $have"; fail=1; }
-          done < <(jq -r 'to_entries[] | select(.key != "lazy.nvim") | "\(.key)\t\(.value.commit)"' lazy-lock.json)
+          # tr strips the CR that windows jq appends to every output line
+          done < <(jq -r 'to_entries[] | select(.key != "lazy.nvim") | "\(.key)\t\(.value.commit)"' lazy-lock.json | tr -d '\r')
           [ "$fail" -eq 0 ] && echo "SMOKE OK: all pinned plugins restored"
           exit $fail
