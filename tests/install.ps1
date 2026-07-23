@@ -30,7 +30,7 @@ function global:nvim {}
 
 function Initialize-TestFixture {
     if (Test-Path $testRoot) {
-        Remove-Item $testRoot -Recurse -Force
+        Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
     New-Item -ItemType Directory -Path (Join-Path $testRoot 'nvim/.git') -Force | Out-Null
     $env:LOCALAPPDATA = $testRoot
@@ -68,8 +68,12 @@ finally {
     Remove-Item Function:\git -ErrorAction SilentlyContinue
     Remove-Item Function:\nvim -ErrorAction SilentlyContinue
     if (Test-Path $testRoot) {
-        Remove-Item $testRoot -Recurse -Force
+        Remove-Item $testRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
     Remove-Item Env:\NVIM_TEST_GIT_LOG, Env:\NVIM_TEST_GIT_ORIGIN, Env:\NVIM_TEST_GIT_FAIL -ErrorAction SilentlyContinue
     $env:LOCALAPPDATA = $originalLocalAppData
 }
+
+# Both assertions above succeeded; clear the non-zero $LASTEXITCODE left by the
+# mocked git failure in test 2 so the pwsh CI step does not inherit it.
+exit 0
