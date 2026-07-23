@@ -1,9 +1,18 @@
 # OS / editor cruft
 .DS_Store
+Thumbs.db
+Desktop.ini
 # installer-made backups (e.g. lazy-lock.json.bak)
 *.bak
 .vscode/
 .idea/
 tags
+
+# Vim runtime files
+*.swp
+*.swo
+*~
+.netrwhist
+*.log
 
 # lazy-lock.json is intentionally committed to pin plugin versions.
