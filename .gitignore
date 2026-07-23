@@ -1,0 +1,9 @@
+# OS / editor cruft
+.DS_Store
+# installer-made backups (e.g. lazy-lock.json.bak)
+*.bak
+.vscode/
+.idea/
+tags
+
+# lazy-lock.json is intentionally committed to pin plugin versions.

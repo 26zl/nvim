@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: stylua
+        uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # pinned so an upstream formatting change can't break CI on its own
+          version: v2.5.2
+          args: --check .
+
+      # shellcheck is preinstalled on ubuntu-latest runners.
+      - name: shellcheck
+        run: shellcheck install.sh install-vimrc.sh
+
+      # Write-Host is intentional: interactive installer with colored output.
+      - name: psscriptanalyzer
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $r = Invoke-ScriptAnalyzer -Path install.ps1 -ExcludeRule PSAvoidUsingWriteHost
+          if ($r) { $r; exit 1 }
+
+      - name: Install luacheck
+        run: sudo apt-get update && sudo apt-get install -y luarocks && sudo luarocks install luacheck
+      - name: luacheck
+        run: luacheck init.lua
+
+  # Boots the config headless and restores every plugin from lazy-lock.json,
+  # so a broken init.lua or a dead plugin pin fails CI instead of a machine.
+  smoke:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install neovim (linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -fsSL https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz | tar xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      - name: install neovim (windows)
+        if: runner.os == 'Windows'
+        run: choco install neovim -y --no-progress
+
+      - name: install config
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then dest="$LOCALAPPDATA/nvim"; else dest="$HOME/.config/nvim"; fi
+          mkdir -p "$(dirname "$dest")" && cp -R . "$dest"
+
+      # `Lazy! restore` exits 0 even when tasks fail, so verify the result against the
+      # lockfile instead: every plugin must sit at its pinned commit. lazy.nvim itself is
+      # exempt - the init.lua bootstrap clones it at branch `stable`, restore never re-pins it.
+      - name: boot config and restore pinned plugins
+        shell: bash
+        run: |
+          nvim --headless "+Lazy! restore" +qa
+          if [ "$RUNNER_OS" = "Windows" ]; then data="$LOCALAPPDATA/nvim-data"; else data="$HOME/.local/share/nvim"; fi
+          fail=0
+          while IFS=$'\t' read -r name commit; do
+            have=$(git -C "$data/lazy/$name" rev-parse HEAD 2>/dev/null || echo missing)
+            [ "$have" = "$commit" ] || { echo "MISMATCH $name: want $commit have $have"; fail=1; }
+          done < <(jq -r 'to_entries[] | select(.key != "lazy.nvim") | "\(.key)\t\(.value.commit)"' lazy-lock.json)
+          [ "$fail" -eq 0 ] && echo "SMOKE OK: all pinned plugins restored"
+          exit $fail
