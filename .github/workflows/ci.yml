@@ -123,6 +123,14 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then dest="$LOCALAPPDATA/nvim"; else dest="$HOME/.config/nvim"; fi
           mkdir -p "$(dirname "$dest")" && cp -R . "$dest"
 
+      - name: install jq (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $jqPath = Join-Path $env:RUNNER_TEMP 'jq.exe'
+          Invoke-WebRequest https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-windows-amd64.exe -OutFile $jqPath
+          Add-Content $env:GITHUB_PATH $env:RUNNER_TEMP
+
       - name: boot config and restore pinned plugins
         if: matrix.supported
         shell: bash
