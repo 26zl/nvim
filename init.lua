@@ -222,6 +222,43 @@ require("lazy").setup({
 			require("mini.ai").setup()
 			require("mini.surround").setup()
 			require("mini.pairs").setup()
+
+			require("mini.starter").setup({
+				header = [[
+  /|  |\            /|  |\
+  /|  |\            /|  |\
+ / |  | \          / |  | \
+ | |  | |          | |  | |
+ \  \/  /  __  __  \  \/  /
+  \    /  / /  \ \  \    /
+   \  /   \ \__/ /   \  /
+   \  /   /      \   \  /
+  _ \ \__/ O    O \__/ / _
+  \\ \___          ___/ //
+_  \\___/  ______  \___//  _
+\\  ----(          )----  //
+ \\_____( ________ )_____//
+  ~-----(          )-----~ _
+   _____( ________ )_____  \\
+  /,----(          )----  _//
+ //     (  ______  )     /  \
+ ~       \        /      \  /
+          \  __  /       / /
+           \    /       / /
+            \   \      / /
+             \   ~----~ /
+              \________/]],
+				items = {
+					{ section = "Menu", name = "Find file", action = "Telescope find_files" },
+					{ section = "Menu", name = "Recent files", action = "Telescope oldfiles" },
+					{ section = "Menu", name = "Live grep", action = "Telescope live_grep" },
+					{ section = "Menu", name = "Quit", action = "qa" },
+				},
+				footer = function()
+					local v = vim.version()
+					return ("Neovim v%d.%d.%d"):format(v.major, v.minor, v.patch)
+				end,
+			})
 		end,
 	},
 
