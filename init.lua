@@ -298,10 +298,13 @@ require("lazy").setup({
 			if is_nixos then
 				vim.lsp.enable(servers)
 			else
-				-- nil has no prebuilt binary: Mason builds it from source, and its
-				-- build script shells out to `nix` to extract the Nix builtins.
+				-- Mason ships prebuilt binaries for most servers, but a few are built
+				-- from source and fail loudly when their toolchain is absent.
+				-- nil's build script also shells out to `nix` for the Nix builtins.
+				local needs = { nil_ls = "nix", gopls = "go" }
 				local installable = vim.tbl_filter(function(name)
-					return name ~= "nil_ls" or vim.fn.executable("nix") == 1
+					local tool = needs[name]
+					return not tool or vim.fn.executable(tool) == 1
 				end, servers)
 				require("mason-lspconfig").setup({ ensure_installed = installable })
 				require("mason-tool-installer").setup({
