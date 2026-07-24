@@ -29,7 +29,12 @@ automatically.
   fzf-native), **ripgrep** + **fd**
   (Telescope), a **clipboard provider** (`wl-clipboard` or `xclip` on Linux; built in
   on macOS/Windows) for the system clipboard, and a **Nerd Font** in your terminal for icons
-- **Rust/Cargo** when Mason should install the Nix language server outside NixOS
+- **A toolchain per language server.** Mason ships prebuilt binaries for lua, rust,
+  c/c++ and markdown; the rest are installed through **Node** (python, ts/js, bash,
+  yaml, docker, ansible, prettier), **Python** (black/isort), **Go** (gopls) or
+  **Rust plus the `nix` binary** (nil — its build script calls `nix` for the builtins).
+  `gopls` and `nil` are skipped when their toolchain is missing; the Node and Python
+  ones report the failure in `:Mason`.
 
 ## Install
 
