@@ -25,8 +25,10 @@ automatically.
 - **Neovim 0.11.3 or newer** (0.11.x and 0.12.x). Older versions are rejected up
   front instead of starting in a broken state. CI smoke-tests 0.11.3, the latest
   0.11 release, and 0.12.
-- **git**, a **C compiler**, `make` on Unix or **CMake** on Windows (Treesitter +
-  fzf-native), **ripgrep** + **fd**
+- **git** and a **C toolchain** for Treesitter parsers and fzf-native: `make` + a C
+  compiler on Linux/macOS/WSL; on **Windows** a MinGW toolchain — e.g. MSYS2's
+  `mingw-w64-ucrt-x86_64-gcc` + `mingw-w64-ucrt-x86_64-make`, with `C:\msys64\ucrt64\bin` on `PATH`.
+  **ripgrep** + **fd**
   (Telescope), a **clipboard provider** (`wl-clipboard` or `xclip` on Linux; built in
   on macOS/Windows) for the system clipboard, and a **Nerd Font** in your terminal for icons
 - **A toolchain per language server.** Mason ships prebuilt binaries for lua, rust,

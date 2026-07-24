@@ -173,10 +173,27 @@ require("lazy").setup({
 		dependencies = {
 			"nvim-lua/plenary.nvim",
 			{
-				-- Windows runners provide CMake rather than make.
+				-- On Windows, build with the MinGW toolchain (gcc + make) that
+				-- Treesitter also needs, rather than CMake + MSVC. See README.
 				"nvim-telescope/telescope-fzf-native.nvim",
 				build = is_windows
-						and "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && cmake --install build --prefix build"
+						and function(plugin)
+							-- Drop any half-built output so make's mkdir step can't error on a rebuild.
+							vim.fn.delete(plugin.dir .. "/build", "rf")
+							local make = (vim.fn.executable("mingw32-make") == 1 and "mingw32-make")
+								or (vim.fn.executable("make") == 1 and "make")
+							if not make then
+								error(
+									"telescope-fzf-native needs a MinGW toolchain (gcc + mingw32-make); see README Requirements"
+								)
+							end
+							local res = vim.system({ make }, { cwd = plugin.dir, text = true }):wait()
+							if res.code ~= 0 then
+								error(
+									"telescope-fzf-native build failed:\n" .. (res.stdout or "") .. (res.stderr or "")
+								)
+							end
+						end
 					or "make",
 			},
 		},
