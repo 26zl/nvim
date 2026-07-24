@@ -127,15 +127,28 @@ Formatters: add one line under `formatters_by_ft` in `init.lua`, or let the LSP 
 
 ## Updating
 
+Pull the latest config first — re-run the installer (it fast-forwards an existing
+official clone), or update the clone directly:
+
+```sh
+git -C ~/.config/nvim pull --ff-only origin main          # Linux / macOS / WSL
+```
+
+```powershell
+git -C $env:LOCALAPPDATA\nvim pull --ff-only origin main   # Windows
+```
+
+Then refresh plugins and parsers from inside Neovim:
+
 ```text
 :Lazy sync     # update plugins  (commit the refreshed lazy-lock.json to pin them)
 :TSUpdate      # update Treesitter parsers
 :checkhealth   # verify everything is wired up
 ```
 
-The repository installer uses an explicit fast-forward from `origin/main`; it
-will not merge or overwrite divergent local work. Plugin revisions, including
-`lazy.nvim` itself, are restored from `lazy-lock.json`.
+Both paths fast-forward from `origin/main`; a clone with local commits or
+uncommitted changes to tracked files is left untouched rather than overwritten.
+Plugin revisions, including `lazy.nvim` itself, are restored from `lazy-lock.json`.
 
 ## Rollback and local state
 
