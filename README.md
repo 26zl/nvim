@@ -12,13 +12,18 @@ automatically.
 ## What's inside
 
 - **Nordic** theme (Nord-based), lualine statusline, **bufferline** tabs, which-key (press a key, see what's next)
-- **Telescope** (files / live-grep / buffers), **neo-tree** file explorer
+- **Telescope** (files / live-grep / buffers / recent / resume), **neo-tree** file explorer
 - **Treesitter** syntax (auto-installs a parser for any language you open), gitsigns, **lazygit**, indent guides, todo-comments, trouble
 - **LSP + completion** (nvim-cmp) for lua, python, ts/js, go, rust, nix, bash,
   yaml, docker, ansible, terraform, c/c++, markdown — add any other via `:Mason`
-- **Format-on-save** via conform.nvim (stylua, black/isort, shfmt, prettier, …)
+- **Format-on-save** via conform.nvim (stylua, black/isort, shfmt, prettier, …) plus
+  **linting** via nvim-lint (shellcheck, markdownlint); a linter you have not installed
+  is skipped rather than reported as an error on every save
 - **mini.nvim**: extra text objects, surround, autopairs
+- **Undo tree** (`<leader>u`) over the persistent undo history
 - **Terminal** in a split (`<leader>t`) for logs / commands beside your code
+- Indentation is **read from the file** instead of forced, and files above 1.5 MB open
+  without syntax, Treesitter or LSP so a stray log or dump stays usable
 
 ## Requirements
 
@@ -37,6 +42,14 @@ automatically.
   **Rust plus the `nix` binary** (nil — its build script calls `nix` for the builtins).
   `gopls` and `nil` are skipped when their toolchain is missing; the Node and Python
   ones report the failure in `:Mason`.
+
+Run **`:CheckDeps`** inside Neovim for a line-by-line report of which of these
+programs are actually on `PATH` — a gap shows up there instead of as a Treesitter
+parser that never compiles or a `:Mason` build that quietly failed. `:checkhealth`
+covers Neovim's own providers alongside it.
+
+Without a Nerd Font, set `vim.g.have_nerd_font = false` near the top of `init.lua`:
+icons fall back to ASCII everywhere instead of rendering as boxes.
 
 ## Install
 
@@ -100,11 +113,18 @@ sh "$installer"   # downloads atomically and backs up an existing ~/.vimrc
 rm "$installer"
 ```
 
+When the full config *is* available on a server, `:SudaWrite` saves a root-owned file
+through `sudo` without reopening Neovim as root, and `:SudaRead` reloads one you opened
+without permission to read.
+
 ## Keys (leader = <kbd>Space</kbd>)
 
 | Key                        | Action                        |
 | -------------------------- | ----------------------------- |
 | `<leader>ff` / `<leader>fg`| find files / grep project     |
+| `<leader>fo` / `<leader>fr`| recent files / resume last picker |
+| `<leader>fw` / `<leader>/` | grep word under cursor / fuzzy find in buffer |
+| `<leader>fk`               | search the keymaps            |
 | `<leader>e`                | toggle file tree              |
 | `gd` / `gr` / `K`          | definition / references / hover |
 | `gI` / `gy`                | implementation / type definition |
@@ -113,7 +133,12 @@ rm "$installer"
 | `gc` / `gcc`               | comment (built-in)            |
 | `<leader>xx`               | diagnostics (Trouble)         |
 | `<leader>t`                | terminal (bottom split)       |
+| `<Esc><Esc>` (terminal)    | back to normal mode           |
+| `<C-h/j/k/l>`              | move between splits           |
+| `<C-Up/Down/Left/Right>`   | resize the split              |
+| `<` / `>` (visual)         | indent and keep the selection |
 | `[b` / `]b`                | previous / next buffer        |
+| `<leader>u`                | undo tree                     |
 | `<leader>gg`               | lazygit (needs the binary)    |
 | `<leader>ih`               | toggle inlay hints            |
 
@@ -125,7 +150,7 @@ rm "$installer"
 Open a file and **Treesitter installs its parser automatically**. For LSP + completion,
 run `:Mason`, install the server, and it's enabled on the next launch — no config edit.
 Formatters: add one line under `formatters_by_ft` in `init.lua`, or let the LSP format
-(the built-in fallback).
+(the built-in fallback). Linters work the same way under `linters_by_ft`.
 
 ## Updating
 
