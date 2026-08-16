@@ -24,6 +24,20 @@ opt.number = true
 opt.relativenumber = true
 opt.mouse = "a"
 opt.clipboard = "unnamedplus"
+-- Over SSH, route the clipboard through OSC 52 so yanks land in the *local*
+-- machine's clipboard via the terminal escape sequence. Neovim already falls
+-- back to OSC 52 when it finds no clipboard tool, but a remote box that happens
+-- to have xclip or wl-copy installed will pick those instead and then block on
+-- a display that isn't there. Setting it explicitly makes the remote behaviour
+-- deterministic rather than dependent on what is installed.
+if vim.env.SSH_TTY and vim.env.SSH_TTY ~= "" then
+	local osc52 = require("vim.ui.clipboard.osc52")
+	vim.g.clipboard = {
+		name = "OSC 52",
+		copy = { ["+"] = osc52.copy("+"), ["*"] = osc52.copy("*") },
+		paste = { ["+"] = osc52.paste("+"), ["*"] = osc52.paste("*") },
+	}
+end
 opt.expandtab = true
 opt.shiftwidth = 2
 opt.tabstop = 2
@@ -115,6 +129,7 @@ local servers = {
 	"terraformls",
 	"clangd",
 	"marksman",
+	"powershell_es",
 }
 
 require("lazy").setup({
@@ -364,7 +379,11 @@ _  \\___/  ______  \___//  _
 				typescript = { "prettierd", "prettier", stop_after_first = true },
 				json = { "prettierd", "prettier", stop_after_first = true },
 				yaml = { "prettierd", "prettier", stop_after_first = true },
-				markdown = { "prettierd", "prettier", stop_after_first = true },
+				-- Markdown is deliberately NOT formatted on save. Prettier rewrites
+				-- tables to padded pipes and reflows text, which fights repos that
+				-- have their own markdownlint rules and a compact table style — the
+				-- result is unrelated churn in every docs commit. Format markdown
+				-- explicitly with <leader>lf when you actually want it.
 			},
 		},
 	},
@@ -380,6 +399,10 @@ _  \\___/  ______  \___//  _
 				sh = { "shellcheck" },
 				bash = { "shellcheck" },
 				markdown = { "markdownlint-cli2" },
+				-- Mirror the CI gates of the repos this config is used on, so a
+				-- lint failure shows up while typing rather than after a push.
+				yaml = { "yamllint" },
+				["yaml.ansible"] = { "ansible_lint" },
 			}
 
 			local function binary(name)
@@ -478,7 +501,10 @@ _  \\___/  ______  \___//  _
 				-- Mason ships prebuilt binaries for most servers, but a few are built
 				-- from source and fail loudly when their toolchain is absent.
 				-- nil's build script also shells out to `nix` for the Nix builtins.
-				local needs = { nil_ls = "nix", gopls = "go" }
+				-- powershell_es is a .NET host that shells out to pwsh at runtime;
+				-- installing it where PowerShell is absent yields a server that
+				-- attaches and then dies on every .ps1 buffer.
+				local needs = { nil_ls = "nix", gopls = "go", powershell_es = "pwsh" }
 				local installable = vim.tbl_filter(function(name)
 					local tool = needs[name]
 					return not tool or vim.fn.executable(tool) == 1
@@ -493,6 +519,8 @@ _  \\___/  ______  \___//  _
 						"prettierd",
 						"shellcheck",
 						"markdownlint-cli2",
+						"yamllint",
+						"ansible-lint",
 					},
 				})
 			end
@@ -654,6 +682,9 @@ local external_tools = {
 	{ names = { "lazygit" }, purpose = "<leader>gg" },
 	{ names = { "shellcheck" }, purpose = "shell linting" },
 	{ names = { "markdownlint-cli2" }, purpose = "markdown linting" },
+	{ names = { "yamllint" }, purpose = "YAML linting" },
+	{ names = { "ansible-lint" }, purpose = "Ansible playbook linting" },
+	{ names = { "pwsh", "powershell" }, purpose = "Mason: powershell_es" },
 }
 
 vim.api.nvim_create_user_command("CheckDeps", function()
