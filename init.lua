@@ -1,12 +1,12 @@
--- Portable Neovim config (0.11.3+) for Linux, macOS, WSL, and Windows.
+-- Portable Neovim config (0.12+) for Linux, macOS, WSL, and Windows.
 local function fail_startup(message)
 	vim.api.nvim_echo({ { message, "ErrorMsg" } }, true, {})
 	os.exit(1)
 end
 
-if vim.fn.has("nvim-0.11.3") == 0 then
+if vim.fn.has("nvim-0.12") == 0 then
 	local v = vim.version()
-	fail_startup(("This config needs Neovim 0.11.3 or newer; you have %d.%d.%d."):format(v.major, v.minor, v.patch))
+	fail_startup(("This config needs Neovim 0.12 or newer; you have %d.%d.%d."):format(v.major, v.minor, v.patch))
 end
 
 vim.loader.enable()
@@ -187,13 +187,61 @@ require("lazy").setup({
 		},
 	},
 
+	-- On its main branch nvim-treesitter only installs parsers and queries;
+	-- highlighting and indentation are switched on per buffer below.
 	{
 		"nvim-treesitter/nvim-treesitter",
-		branch = "master",
+		branch = "main",
+		lazy = false, -- registers query predicates and filetypes that must exist before the first buffer loads
 		build = ":TSUpdate",
-		main = "nvim-treesitter.configs",
-		opts = {
-			ensure_installed = {
+		config = function(plugin)
+			local ts = require("nvim-treesitter")
+
+			-- The master branch compiled parsers into the plugin directory, where they
+			-- would shadow the bundled ones without matching the current queries. Main
+			-- installs under stdpath("data")/site instead, so drop the leftovers.
+			vim.fn.delete(plugin.dir .. "/parser", "rf")
+			vim.fn.delete(plugin.dir .. "/parser-info", "rf")
+
+			local function attach(buf, lang)
+				if not vim.treesitter.highlighter.active[buf] and not pcall(vim.treesitter.start, buf, lang) then
+					return
+				end
+				local ok, indents = pcall(vim.treesitter.query.get, lang, "indents")
+				if ok and indents then
+					vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+				end
+			end
+
+			-- Asynchronous and a no-op for parsers that are already installed; each
+			-- language is tried once per session so a missing toolchain does not
+			-- error on every buffer. Buffers opened while their parser was still
+			-- being built are attached afterwards.
+			local requested = {}
+			local function install(langs)
+				langs = vim.tbl_filter(function(lang)
+					return not requested[lang]
+				end, langs)
+				if #langs == 0 then
+					return
+				end
+				for _, lang in ipairs(langs) do
+					requested[lang] = true
+				end
+				ts.install(langs):await(function()
+					local installed = ts.get_installed("parsers")
+					for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+						local lang = vim.api.nvim_buf_is_loaded(buf)
+							and not vim.b[buf].big_file
+							and vim.treesitter.language.get_lang(vim.bo[buf].filetype)
+						if lang and vim.list_contains(langs, lang) and vim.list_contains(installed, lang) then
+							attach(buf, lang)
+						end
+					end
+				end)
+			end
+
+			install({
 				"bash",
 				"lua",
 				"nix",
@@ -209,16 +257,32 @@ require("lazy").setup({
 				"markdown_inline",
 				"vimdoc",
 				"gitcommit",
-			},
-			auto_install = true,
-			highlight = {
-				enable = true,
-				disable = function(_, buf)
-					return vim.b[buf].big_file == true
+			})
+
+			local available -- every parser nvim-treesitter can install; the list is static
+			vim.api.nvim_create_autocmd("FileType", {
+				group = vim.api.nvim_create_augroup("treesitter-attach", { clear = true }),
+				callback = function(ev)
+					if vim.b[ev.buf].big_file then
+						-- Neovim's own ftplugins start treesitter for lua, markdown and help.
+						vim.treesitter.stop(ev.buf)
+						return
+					end
+					local lang = vim.treesitter.language.get_lang(ev.match)
+					if not lang then
+						return
+					end
+					if vim.list_contains(ts.get_installed("parsers"), lang) then
+						attach(ev.buf, lang)
+						return
+					end
+					available = available or ts.get_available()
+					if vim.list_contains(available, lang) then
+						install({ lang }) -- any language you open gets its parser, as before
+					end
 				end,
-			},
-			indent = { enable = true },
-		},
+			})
+		end,
 	},
 
 	{
@@ -676,8 +740,11 @@ end, { desc = "Toggle inlay hints" })
 -- failure in `:Mason` or a Treesitter parser that never compiles.
 local external_tools = {
 	{ names = { "git" }, required = true, purpose = "lazy.nvim clones and pins plugins" },
+	{ names = { "tree-sitter" }, required = true, purpose = "builds Treesitter parsers (CLI 0.26.1+)" },
+	{ names = { "curl" }, required = true, purpose = "downloads Treesitter parsers" },
+	{ names = { "tar" }, required = true, purpose = "unpacks Treesitter parsers" },
 	{ names = { "cc", "gcc", "clang" }, required = true, purpose = "Treesitter parsers, fzf-native" },
-	{ names = { "make", "mingw32-make" }, required = true, purpose = "Treesitter parsers, fzf-native" },
+	{ names = { "make", "mingw32-make" }, required = true, purpose = "fzf-native" },
 	{ names = { "rg" }, required = true, purpose = "Telescope live-grep" },
 	{ names = { "fd", "fdfind" }, purpose = "faster Telescope file search" },
 	{ names = { "node" }, purpose = "Mason: python/ts/bash/yaml/docker/ansible, prettier" },
