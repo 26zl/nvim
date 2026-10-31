@@ -1,7 +1,7 @@
 # nvim
 
 [![ci](https://github.com/26zl/nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/26zl/nvim/actions/workflows/ci.yml)
-[![Neovim 0.11.3+](https://img.shields.io/badge/Neovim-0.11.3%2B-57A143?logo=neovim&logoColor=white)](https://neovim.io)
+[![Neovim 0.12+](https://img.shields.io/badge/Neovim-0.12%2B-57A143?logo=neovim&logoColor=white)](https://neovim.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A portable single-file Neovim config (`init.lua`) — the **same setup on any Linux,
@@ -27,12 +27,18 @@ automatically.
 
 ## Requirements
 
-- **Neovim 0.11.3 or newer** (0.11.x and 0.12.x). Older versions are rejected up
-  front instead of starting in a broken state. CI smoke-tests 0.11.3, the latest
-  0.11 release, and 0.12.
-- **git** and a **C toolchain** for Treesitter parsers and fzf-native: `make` + a C
-  compiler on Linux/macOS/WSL; on **Windows** a MinGW toolchain — e.g. MSYS2's
-  `mingw-w64-ucrt-x86_64-gcc` + `mingw-w64-ucrt-x86_64-make`, with `C:\msys64\ucrt64\bin` on `PATH`.
+- **Neovim 0.12 or newer**. Older versions are rejected up front instead of
+  starting in a broken state (nvim-treesitter's `main` branch needs 0.12). CI
+  smoke-tests 0.12.0 and the latest 0.12 release.
+- **git**, the **tree-sitter CLI** (0.26.1 or newer: `brew install tree-sitter-cli`,
+  `pacman -S tree-sitter-cli`, the `tree-sitter` package on Nix, or a binary from the
+  [tree-sitter releases](https://github.com/tree-sitter/tree-sitter/releases) where the
+  packaged one is older, as on Debian/Ubuntu), **curl** + **tar**, and a **C toolchain**:
+  Treesitter parsers are downloaded and built by the CLI with your C compiler, and
+  fzf-native needs `make` + the compiler. On **Windows** take all three from MSYS2 —
+  `mingw-w64-ucrt-x86_64-gcc`, `mingw-w64-ucrt-x86_64-make` and
+  `mingw-w64-ucrt-x86_64-tree-sitter` (a MinGW build of the CLI, so it compiles with
+  that `gcc`) — with `C:\msys64\ucrt64\bin` on `PATH`.
   **ripgrep** + **fd**
   (Telescope), a **clipboard provider** (`wl-clipboard` or `xclip` on Linux and WSLg,
   `win32yank.exe` on WSL without WSLg; built in on macOS/Windows) for the system
@@ -98,7 +104,7 @@ Run `:Mason` afterwards to watch the language servers install (on NixOS they com
 
 On distributions whose package manager ships an older Neovim, grab a current
 build from the official [Neovim releases](https://github.com/neovim/neovim/releases)
-(0.11.3 or newer) and verify the asset's published SHA-256 digest before installing.
+(0.12 or newer) and verify the asset's published SHA-256 digest before installing.
 
 ## Plain Vim on servers
 

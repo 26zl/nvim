@@ -2,7 +2,7 @@
 
 This is a single-file Neovim config (`init.lua`) plus installer scripts and a
 plugin-free `vimrc`. It has to keep working on Linux, macOS, WSL and Windows with
-Neovim 0.11.3 and newer, so CI (`.github/workflows/ci.yml`) lints everything and
+Neovim 0.12 and newer, so CI (`.github/workflows/ci.yml`) lints everything and
 smoke-tests the config on several Neovim versions. Run the same checks locally before
 opening a pull request.
 
@@ -20,8 +20,10 @@ nvim --headless "+Lazy! restore" +qa   # installs the pinned plugins
 nvim                                    # try it interactively
 ```
 
-The same variables work from PowerShell (`$env:XDG_CONFIG_HOME = ...`). Delete the
-sandbox when you are done.
+The same variables work from PowerShell (`$env:XDG_CONFIG_HOME = ...`). Treesitter
+parsers are downloaded and built in the background on the first start (they need
+`tree-sitter`, `curl`, `tar` and a C compiler); `:checkhealth nvim-treesitter` lists
+what is installed. Delete the sandbox when you are done.
 
 ## Checks
 
