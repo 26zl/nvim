@@ -572,13 +572,18 @@ _  \\___/  ______  \___//  _
 			vim.api.nvim_create_autocmd("LspDetach", {
 				group = vim.api.nvim_create_augroup("lsp-detach", { clear = true }),
 				callback = function(ev)
-					vim.lsp.buf.clear_references()
+					vim.lsp.util.buf_clear_references(ev.buf)
 					vim.api.nvim_clear_autocmds({ group = highlight_group, buffer = ev.buf })
 				end,
 			})
 		end,
 	},
-}, { ui = { border = "rounded" }, checker = { enabled = false } })
+}, {
+	ui = { border = "rounded" },
+	checker = { enabled = false },
+	-- Nothing here needs luarocks; this keeps `:checkhealth lazy` from flagging its absence.
+	rocks = { enabled = false },
+})
 
 vim.diagnostic.config({
 	severity_sort = true,
@@ -649,7 +654,9 @@ vim.keymap.set("n", "<C-Right>", "<cmd>vertical resize +2<cr>", { desc = "Widen 
 
 vim.keymap.set("x", "<", "<gv", { desc = "Dedent and keep the selection" })
 vim.keymap.set("x", ">", ">gv", { desc = "Indent and keep the selection" })
-vim.keymap.set("x", "p", '"_dP', { desc = "Paste over without clobbering the register" })
+-- Built-in visual P pastes without touching the unnamed register and, unlike
+-- "_dP, puts the text in the right place when the selection ends a line.
+vim.keymap.set("x", "p", "P", { desc = "Paste over without clobbering the register" })
 
 vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Leave terminal mode" })
 vim.keymap.set("n", "<leader>t", function()
@@ -684,7 +691,7 @@ local external_tools = {
 	{ names = { "markdownlint-cli2" }, purpose = "markdown linting" },
 	{ names = { "yamllint" }, purpose = "YAML linting" },
 	{ names = { "ansible-lint" }, purpose = "Ansible playbook linting" },
-	{ names = { "pwsh", "powershell" }, purpose = "Mason: powershell_es" },
+	{ names = { "pwsh" }, purpose = "Mason: powershell_es" },
 }
 
 vim.api.nvim_create_user_command("CheckDeps", function()

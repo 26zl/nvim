@@ -15,10 +15,10 @@ automatically.
 - **Telescope** (files / live-grep / buffers / recent / resume), **neo-tree** file explorer
 - **Treesitter** syntax (auto-installs a parser for any language you open), gitsigns, **lazygit**, indent guides, todo-comments, trouble
 - **LSP + completion** (nvim-cmp) for lua, python, ts/js, go, rust, nix, bash,
-  yaml, docker, ansible, terraform, c/c++, markdown — add any other via `:Mason`
+  yaml, docker, ansible, terraform, c/c++, markdown, powershell — add any other via `:Mason`
 - **Format-on-save** via conform.nvim (stylua, black/isort, shfmt, prettier, …) plus
-  **linting** via nvim-lint (shellcheck, markdownlint); a linter you have not installed
-  is skipped rather than reported as an error on every save
+  **linting** via nvim-lint (shellcheck, markdownlint, yamllint, ansible-lint); a linter
+  you have not installed is skipped rather than reported as an error on every save
 - **mini.nvim**: extra text objects, surround, autopairs
 - **Undo tree** (`<leader>u`) over the persistent undo history
 - **Terminal** in a split (`<leader>t`) for logs / commands beside your code
@@ -34,14 +34,17 @@ automatically.
   compiler on Linux/macOS/WSL; on **Windows** a MinGW toolchain — e.g. MSYS2's
   `mingw-w64-ucrt-x86_64-gcc` + `mingw-w64-ucrt-x86_64-make`, with `C:\msys64\ucrt64\bin` on `PATH`.
   **ripgrep** + **fd**
-  (Telescope), a **clipboard provider** (`wl-clipboard` or `xclip` on Linux; built in
-  on macOS/Windows) for the system clipboard, and a **Nerd Font** in your terminal for icons
+  (Telescope), a **clipboard provider** (`wl-clipboard` or `xclip` on Linux and WSLg,
+  `win32yank.exe` on WSL without WSLg; built in on macOS/Windows) for the system
+  clipboard — over SSH, yanks reach your local clipboard through OSC 52 instead — and a
+  **Nerd Font** in your terminal for icons
 - **A toolchain per language server.** Mason ships prebuilt binaries for lua, rust,
-  c/c++ and markdown; the rest are installed through **Node** (python, ts/js, bash,
-  yaml, docker, ansible, prettier), **Python** (black/isort), **Go** (gopls) or
-  **Rust plus the `nix` binary** (nil — its build script calls `nix` for the builtins).
-  `gopls` and `nil` are skipped when their toolchain is missing; the Node and Python
-  ones report the failure in `:Mason`.
+  c/c++, terraform, markdown and powershell; the rest are installed through **Node**
+  (python, ts/js, bash, yaml, docker, ansible, prettier), **Python** (black/isort,
+  yamllint, ansible-lint), **Go** (gopls) or **Rust plus the `nix` binary** (nil — its
+  build script calls `nix` for the builtins). The PowerShell server itself runs inside
+  **PowerShell 7** (`pwsh`). `gopls`, `nil` and `powershell_es` are skipped when their
+  toolchain is missing; the Node and Python ones report the failure in `:Mason`.
 
 Run **`:CheckDeps`** inside Neovim for a line-by-line report of which of these
 programs are actually on `PATH` — a gap shows up there instead of as a Treesitter
@@ -121,10 +124,13 @@ without permission to read.
 
 | Key                        | Action                        |
 | -------------------------- | ----------------------------- |
+| `<leader>w` / `<leader>q`  | save / quit                   |
 | `<leader>ff` / `<leader>fg`| find files / grep project     |
 | `<leader>fo` / `<leader>fr`| recent files / resume last picker |
 | `<leader>fw` / `<leader>/` | grep word under cursor / fuzzy find in buffer |
 | `<leader>fk`               | search the keymaps            |
+| `<leader>fb` / `<leader>fh`| buffers / help tags           |
+| `<leader>fd`               | diagnostics (Telescope)       |
 | `<leader>e`                | toggle file tree              |
 | `gd` / `gr` / `K`          | definition / references / hover |
 | `gI` / `gy`                | implementation / type definition |
@@ -137,6 +143,7 @@ without permission to read.
 | `<C-h/j/k/l>`              | move between splits           |
 | `<C-Up/Down/Left/Right>`   | resize the split              |
 | `<` / `>` (visual)         | indent and keep the selection |
+| `p` (visual)               | paste over the selection, keep the register |
 | `[b` / `]b`                | previous / next buffer        |
 | `<leader>u`                | undo tree                     |
 | `<leader>gg`               | lazygit (needs the binary)    |
