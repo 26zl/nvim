@@ -30,7 +30,13 @@ opt.clipboard = "unnamedplus"
 -- to have xclip or wl-copy installed will pick those instead and then block on
 -- a display that isn't there. Setting it explicitly makes the remote behaviour
 -- deterministic rather than dependent on what is installed.
-if vim.env.SSH_TTY and vim.env.SSH_TTY ~= "" then
+--
+-- Inside tmux Neovim's own tmux provider is used instead (`tmux load-buffer -w`
+-- to copy, `tmux save-buffer` to paste), and tmux carries the yank on to the
+-- outer terminal. That keeps working with `set-clipboard external`, the setting
+-- that stops whatever runs or prints in a pane from writing or reading the
+-- clipboard through OSC 52 - and which drops Neovim's own OSC 52 with the rest.
+if vim.env.SSH_TTY and vim.env.SSH_TTY ~= "" and (vim.env.TMUX == nil or vim.env.TMUX == "") then
 	local osc52 = require("vim.ui.clipboard.osc52")
 	vim.g.clipboard = {
 		name = "OSC 52",

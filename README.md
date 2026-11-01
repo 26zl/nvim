@@ -42,7 +42,8 @@ automatically.
   **ripgrep** + **fd**
   (Telescope), a **clipboard provider** (`wl-clipboard` or `xclip` on Linux and WSLg,
   `win32yank.exe` on WSL without WSLg; built in on macOS/Windows) for the system
-  clipboard — over SSH, yanks reach your local clipboard through OSC 52 instead — and a
+  clipboard — over SSH, yanks reach your local clipboard through OSC 52 instead, and inside
+  tmux through tmux itself (`load-buffer -w`), so `set-clipboard external` is enough — and a
   **Nerd Font** in your terminal for icons
 - **A toolchain per language server.** Mason ships prebuilt binaries for lua, rust,
   c/c++, terraform, markdown and powershell; the rest are installed through **Node**
