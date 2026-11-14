@@ -121,6 +121,19 @@ end
 
 vim.opt.rtp:prepend(lazypath)
 
+-- lazy.nvim switches branches only on an update, so a checkout from before
+-- nvim-treesitter moved to main is removed and reinstalled from the lockfile,
+-- provided the lockfile itself pins main.
+local treesitter_dir = vim.fn.stdpath("data") .. "/lazy/nvim-treesitter"
+local treesitter_lock = lock["nvim-treesitter"]
+if
+	type(treesitter_lock) == "table"
+	and treesitter_lock.branch == "main"
+	and vim.uv.fs_stat(treesitter_dir .. "/lua/nvim-treesitter/configs.lua")
+then
+	vim.fn.delete(treesitter_dir, "rf")
+end
+
 local servers = {
 	"lua_ls",
 	"pyright",
@@ -202,6 +215,14 @@ require("lazy").setup({
 		build = ":TSUpdate",
 		config = function(plugin)
 			local ts = require("nvim-treesitter")
+			if not ts.install then
+				local fix = ('git -C "%s" restore lazy-lock.json'):format(vim.fn.stdpath("config"))
+				vim.notify(
+					"nvim-treesitter is still on its master branch: run `" .. fix .. "` and restart Neovim.",
+					vim.log.levels.ERROR
+				)
+				return
+			end
 
 			-- The master branch compiled parsers into the plugin directory, where they
 			-- would shadow the bundled ones without matching the current queries. Main
